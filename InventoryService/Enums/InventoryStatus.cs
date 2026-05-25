@@ -5,6 +5,13 @@ public static class InventoryStatus
     public const string InStock = "InStock";
     public const string LowStock = "LowStock";
     public const string OutOfStock = "OutOfStock";
+
+    public static string FromQuantity(decimal qty, decimal minQty)
+    {
+        if (qty <= 0) return OutOfStock;
+        if (qty <= minQty) return LowStock;
+        return InStock;
+    }
 }
 
 public static class PurchaseOrderStatus

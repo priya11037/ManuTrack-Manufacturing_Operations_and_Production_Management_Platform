@@ -7,15 +7,14 @@ namespace ComplianceService.Repositories;
 
 public class AuditRepository(AuditDbContext db) : IAuditRepository
 {
-    // Change 5: extended filters
-    public async Task<IEnumerable<AuditEntry>> GetAllAsync(
-        string? userId = null,
-        string? serviceName = null,
-        DateTime? from = null,
-        DateTime? to = null,
-        string? entityType = null,
-        string? action = null,
-        string? entityId = null)
+    private IQueryable<AuditEntry> BuildQuery(
+        string? userId,
+        string? serviceName,
+        DateTime? from,
+        DateTime? to,
+        string? entityType,
+        string? action,
+        string? entityId)
     {
         var query = db.AuditEntries.AsQueryable();
 
@@ -34,7 +33,38 @@ public class AuditRepository(AuditDbContext db) : IAuditRepository
         if (!string.IsNullOrWhiteSpace(entityId))
             query = query.Where(a => a.EntityID == entityId);
 
-        return await query.OrderByDescending(a => a.Timestamp).Take(1000).ToListAsync();
+        return query;
+    }
+
+    public async Task<IEnumerable<AuditEntry>> GetAllAsync(
+        string? userId = null,
+        string? serviceName = null,
+        DateTime? from = null,
+        DateTime? to = null,
+        string? entityType = null,
+        string? action = null,
+        string? entityId = null,
+        int page = 1,
+        int pageSize = 50)
+    {
+        return await BuildQuery(userId, serviceName, from, to, entityType, action, entityId)
+            .OrderByDescending(a => a.Timestamp)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+    }
+
+    public async Task<int> CountAsync(
+        string? userId = null,
+        string? serviceName = null,
+        DateTime? from = null,
+        DateTime? to = null,
+        string? entityType = null,
+        string? action = null,
+        string? entityId = null)
+    {
+        return await BuildQuery(userId, serviceName, from, to, entityType, action, entityId)
+            .CountAsync();
     }
 
     public async Task<AuditEntry?> GetByIdAsync(int id) => await db.AuditEntries.FindAsync(id);
@@ -46,7 +76,6 @@ public class AuditRepository(AuditDbContext db) : IAuditRepository
         return entry;
     }
 
-    // Change 6 + 7: full period query with no Take limit
     public async Task<IEnumerable<AuditEntry>> GetAllForMetricsAsync(DateTime from, DateTime to)
     {
         return await db.AuditEntries

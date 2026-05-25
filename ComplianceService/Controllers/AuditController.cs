@@ -11,18 +11,19 @@ namespace ComplianceService.Controllers;
 [Authorize]
 public class AuditController(IAuditService service) : ControllerBase
 {
-    // Change 5: extended query filters (entityType, action, entityId)
     [HttpGet]
     [Authorize(Roles = "Admin,ComplianceOfficer")]
-    public async Task<ActionResult<ApiResponse<IEnumerable<AuditEntryViewModel>>>> GetAll(
+    public async Task<ActionResult<ApiResponse<PagedAuditViewModel>>> GetAll(
         [FromQuery] string? userId,
         [FromQuery] string? serviceName,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
         [FromQuery] string? entityType,
         [FromQuery] string? action,
-        [FromQuery] string? entityId)
-        => Ok(await service.GetAllAsync(userId, serviceName, from, to, entityType, action, entityId));
+        [FromQuery] string? entityId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
+        => Ok(await service.GetAllAsync(userId, serviceName, from, to, entityType, action, entityId, page, pageSize));
 
     [HttpGet("{id:int}")]
     [Authorize(Roles = "Admin,ComplianceOfficer")]

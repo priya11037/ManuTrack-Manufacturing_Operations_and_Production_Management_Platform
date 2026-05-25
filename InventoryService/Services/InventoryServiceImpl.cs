@@ -42,17 +42,10 @@ public class InventoryServiceImpl(
         catch (Exception ex) { logger.LogWarning(ex, "Audit log failed in InventoryService."); }
     }
 
-    // ── Change 1: RecalculateStatus + low-stock notification ──────────────────
-    private static string DetermineStatus(decimal qty, decimal minQty)
-    {
-        if (qty <= 0) return InventoryStatus.OutOfStock;
-        if (qty <= minQty) return InventoryStatus.LowStock;
-        return InventoryStatus.InStock;
-    }
-
+    // ── RecalculateStatus + low-stock notification ────────────────────────────
     private async Task RecalculateStatusAsync(InventoryItem item)
     {
-        var newStatus = DetermineStatus(item.QuantityOnHand, item.MinimumQuantity);
+        var newStatus = InventoryStatus.FromQuantity(item.QuantityOnHand, item.MinimumQuantity);
         var statusChanged = item.Status != newStatus;
         item.Status = newStatus;
 

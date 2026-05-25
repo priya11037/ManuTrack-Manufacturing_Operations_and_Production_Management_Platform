@@ -116,3 +116,17 @@ public class AuditEntryViewModel
     public string? Details { get; set; }
     public DateTime Timestamp { get; set; }
 }
+
+public class AuditPaginationViewModel
+{
+    public int CurrentPage { get; set; }
+    public int PageSize { get; set; }
+    public int TotalRecords { get; set; }
+    public int TotalPages { get; set; }
+}
+
+public class PagedAuditViewModel
+{
+    public IEnumerable<AuditEntryViewModel> Data { get; set; } = [];
+    public AuditPaginationViewModel Pagination { get; set; } = new();
+}

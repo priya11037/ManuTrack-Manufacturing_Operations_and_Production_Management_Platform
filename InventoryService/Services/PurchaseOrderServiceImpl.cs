@@ -129,7 +129,7 @@ public class PurchaseOrderServiceImpl(
                 if (invItem == null) continue;
 
                 invItem.QuantityOnHand += item.Quantity;
-                invItem.Status = DetermineStatus(invItem.QuantityOnHand, invItem.MinimumQuantity);
+                invItem.Status = InventoryStatus.FromQuantity(invItem.QuantityOnHand, invItem.MinimumQuantity);
                 invItem.ModifiedDate = DateTime.UtcNow;
                 item.ReceivedQty = item.Quantity;
 
@@ -157,15 +157,6 @@ public class PurchaseOrderServiceImpl(
             $"New Status: {request.Status}");
 
         return ApiResponse<PurchaseOrderViewModel>.Ok(Map(updated), "Purchase order status updated.");
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private static string DetermineStatus(decimal qty, decimal minQty)
-    {
-        if (qty <= 0) return InventoryStatus.OutOfStock;
-        if (qty <= minQty) return InventoryStatus.LowStock;
-        return InventoryStatus.InStock;
     }
 
     private static PurchaseOrderViewModel Map(PurchaseOrder p) => new()

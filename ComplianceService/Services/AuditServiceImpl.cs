@@ -9,18 +9,36 @@ namespace ComplianceService.Services;
 
 public class AuditServiceImpl(IAuditRepository repo) : IAuditService
 {
-    // Change 5: pass all new filters through to repository
-    public async Task<ApiResponse<IEnumerable<AuditEntryViewModel>>> GetAllAsync(
+    private const int MaxPageSize = 50;
+
+    public async Task<ApiResponse<PagedAuditViewModel>> GetAllAsync(
         string? userId,
         string? serviceName,
         DateTime? from,
         DateTime? to,
         string? entityType,
         string? action,
-        string? entityId)
+        string? entityId,
+        int page,
+        int pageSize)
     {
-        var entries = await repo.GetAllAsync(userId, serviceName, from, to, entityType, action, entityId);
-        return ApiResponse<IEnumerable<AuditEntryViewModel>>.Ok(entries.Select(Map));
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
+
+        var total = await repo.CountAsync(userId, serviceName, from, to, entityType, action, entityId);
+        var entries = await repo.GetAllAsync(userId, serviceName, from, to, entityType, action, entityId, page, pageSize);
+
+        return ApiResponse<PagedAuditViewModel>.Ok(new PagedAuditViewModel
+        {
+            Data = entries.Select(Map),
+            Pagination = new AuditPaginationViewModel
+            {
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalRecords = total,
+                TotalPages = (int)Math.Ceiling((double)total / pageSize)
+            }
+        });
     }
 
     public async Task<ApiResponse<AuditEntryViewModel>> GetByIdAsync(int id)
