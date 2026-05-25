@@ -20,6 +20,13 @@ public class PurchaseOrderServiceImpl(
     IHttpContextAccessor httpContextAccessor,
     ILogger<PurchaseOrderServiceImpl> logger) : IPurchaseOrderService
 {
+    private static string DetermineStatus(decimal qty, decimal minQty)
+    {
+        if (qty <= 0) return InventoryStatus.OutOfStock;
+        if (qty <= minQty) return InventoryStatus.LowStock;
+        return InventoryStatus.InStock;
+    }
+
     private async Task LogAuditAsync(string action, string entityType, string entityId, string? details = null)
     {
         try
@@ -129,7 +136,7 @@ public class PurchaseOrderServiceImpl(
                 if (invItem == null) continue;
 
                 invItem.QuantityOnHand += item.Quantity;
-                invItem.Status = InventoryStatus.FromQuantity(invItem.QuantityOnHand, invItem.MinimumQuantity);
+                invItem.Status = DetermineStatus(invItem.QuantityOnHand, invItem.MinimumQuantity);
                 invItem.ModifiedDate = DateTime.UtcNow;
                 item.ReceivedQty = item.Quantity;
 

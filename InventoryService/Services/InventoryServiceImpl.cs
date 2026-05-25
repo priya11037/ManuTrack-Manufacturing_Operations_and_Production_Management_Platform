@@ -43,9 +43,16 @@ public class InventoryServiceImpl(
     }
 
     // ── RecalculateStatus + low-stock notification ────────────────────────────
+    private static string DetermineStatus(decimal qty, decimal minQty)
+    {
+        if (qty <= 0) return InventoryStatus.OutOfStock;
+        if (qty <= minQty) return InventoryStatus.LowStock;
+        return InventoryStatus.InStock;
+    }
+
     private async Task RecalculateStatusAsync(InventoryItem item)
     {
-        var newStatus = InventoryStatus.FromQuantity(item.QuantityOnHand, item.MinimumQuantity);
+        var newStatus = DetermineStatus(item.QuantityOnHand, item.MinimumQuantity);
         var statusChanged = item.Status != newStatus;
         item.Status = newStatus;
 
