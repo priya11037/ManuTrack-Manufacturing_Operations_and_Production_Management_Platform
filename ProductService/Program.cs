@@ -120,10 +120,4 @@ app.MapControllers();
 app.UseSwagger();
 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Product Service v1"));
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<ProductDbContext>();
-    db.Database.Migrate();
-}
-
 app.Run();

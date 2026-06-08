@@ -1,3 +1,4 @@
+using ManuTrack.SharedKernel.Helpers;
 using ManuTrack.SharedKernel.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -5,13 +6,19 @@ using ProductService.DTOs;
 using ProductService.Models;
 using ProductService.Repositories;
 using ProductService.Repositories.Interfaces;
+using System.Net.Http.Json;
 
 namespace ProductService.Controllers;
 
 [ApiController]
 [Route("api/v1/components")]
 [Authorize]
-public class ComponentController(IComponentRepository repo, IBomRepository bomRepo) : ControllerBase
+public class ComponentController(
+    IComponentRepository repo,
+    IBomRepository bomRepo,
+    IHttpClientFactory httpClientFactory,
+    IHttpContextAccessor httpContextAccessor,
+    ILogger<ComponentController> logger) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IEnumerable<ComponentViewModel>>>> GetAll(
@@ -35,6 +42,10 @@ public class ComponentController(IComponentRepository repo, IBomRepository bomRe
     [Authorize(Roles = "Admin,Planner")]
     public async Task<ActionResult<ApiResponse<ComponentViewModel>>> Create([FromBody] CreateComponentRequest req)
     {
+        if (await repo.ExistsByNameAsync(req.Name.Trim()))
+            return Conflict(ApiResponse<ComponentViewModel>.Fail(
+                $"A material named '{req.Name.Trim()}' already exists. Please use a different name."));
+
         var component = new Component
         {
             Name = req.Name.Trim(),
@@ -44,6 +55,30 @@ public class ComponentController(IComponentRepository repo, IBomRepository bomRe
             IsActive = true,
         };
         var created = await repo.CreateAsync(component);
+
+        // Auto-create an InventoryItem in InventoryService with 0 qty so it shows up in Stock Inventory
+        try
+        {
+            var inventoryClient = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "InventoryService");
+            var inventoryPayload = new
+            {
+                ItemType      = "RawMaterial",
+                ComponentID   = created.ComponentID,
+                ProductName   = created.Name,
+                QuantityOnHand  = 0,
+                MinimumQuantity = 0,
+                Notes         = $"Auto-created when component '{created.Name}' was registered."
+            };
+            var response = await inventoryClient.PostAsJsonAsync("api/v1/inventory", inventoryPayload);
+            if (!response.IsSuccessStatusCode)
+                logger.LogWarning("InventoryService returned {Status} when auto-creating inventory item for component {Id}.",
+                    response.StatusCode, created.ComponentID);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to auto-create inventory item for component {Id}.", created.ComponentID);
+        }
+
         return CreatedAtAction(nameof(GetById), new { id = created.ComponentID },
             ApiResponse<ComponentViewModel>.Ok(Map(created), "Component registered successfully."));
     }

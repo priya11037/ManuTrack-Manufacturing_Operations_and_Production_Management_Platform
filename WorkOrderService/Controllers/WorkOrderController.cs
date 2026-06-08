@@ -56,7 +56,7 @@ public class WorkOrderController(IWorkOrderService service) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Planner")]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         var result = await service.DeleteAsync(id);

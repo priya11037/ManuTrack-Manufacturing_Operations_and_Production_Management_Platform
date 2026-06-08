@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace ProductService.DTOs;
 
@@ -47,6 +48,7 @@ public class UpdateBomStatusRequest
 
 public class BomViewModel
 {
+    [JsonPropertyName("bomID")]
     public int BOMID { get; set; }
     public int ProductID { get; set; }
     public string ProductName { get; set; } = string.Empty;

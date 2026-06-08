@@ -158,6 +158,9 @@ public class WorkOrderTaskServiceImpl(
         if (task == null)
             return ApiResponse.Fail($"Task {id} not found.");
 
+        if (task.Status == WorkOrderTaskStatus.Completed)
+            return ApiResponse.Fail("Completed tasks cannot be deleted.");
+
         await taskRepo.DeleteAsync(task);
 
         await LogAuditAsync("Deleted Task", "WorkOrderTask", id.ToString(),

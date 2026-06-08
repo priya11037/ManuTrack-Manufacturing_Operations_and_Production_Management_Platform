@@ -11,8 +11,8 @@ using ProductService.Data;
 namespace ProductService.Migrations
 {
     [DbContext(typeof(ProductDbContext))]
-    [Migration("20260603042438_RemoveUnusedColumns")]
-    partial class RemoveUnusedColumns
+    [Migration("20260608081349_UniqueComponentName")]
+    partial class UniqueComponentName
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

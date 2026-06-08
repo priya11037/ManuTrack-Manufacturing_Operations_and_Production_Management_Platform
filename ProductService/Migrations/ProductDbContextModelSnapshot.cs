@@ -62,7 +62,7 @@ namespace ProductService.Migrations
 
                     b.HasIndex("ProductID");
 
-                    b.ToTable("Boms");
+                    b.ToTable("Boms", (string)null);
                 });
 
             modelBuilder.Entity("ProductService.Models.Component", b =>
@@ -99,7 +99,7 @@ namespace ProductService.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("Components");
+                    b.ToTable("Components", (string)null);
                 });
 
             modelBuilder.Entity("ProductService.Models.Product", b =>
@@ -144,7 +144,7 @@ namespace ProductService.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("Products");
+                    b.ToTable("Products", (string)null);
                 });
 
             modelBuilder.Entity("ProductService.Models.Bom", b =>

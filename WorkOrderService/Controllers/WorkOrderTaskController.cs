@@ -55,11 +55,11 @@ public class WorkOrderTaskController(IWorkOrderTaskService service) : Controller
     }
 
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Planner")]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         var result = await service.DeleteAsync(id);
-        if (!result.Success) return NotFound(result);
+        if (!result.Success) return BadRequest(result);
         return Ok(result);
     }
 }

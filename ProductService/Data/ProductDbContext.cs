@@ -19,7 +19,7 @@ public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbCo
             e.Property(c => c.MaterialType).IsRequired().HasMaxLength(100);
             e.Property(c => c.Unit).IsRequired().HasMaxLength(50);
             e.Property(c => c.Description).HasMaxLength(500);
-            e.HasIndex(c => c.Name);
+            e.HasIndex(c => c.Name).IsUnique();
         });
 
         modelBuilder.Entity<Product>(e =>

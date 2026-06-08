@@ -41,6 +41,10 @@ export class AuthService {
     );
   }
 
+  changePassword(currentPassword: string, newPassword: string): Observable<any> {
+    return this.http.put(`${this.apiUrl}/change-password`, { currentPassword, newPassword });
+  }
+
   logout(): void {
     localStorage.clear();
   }

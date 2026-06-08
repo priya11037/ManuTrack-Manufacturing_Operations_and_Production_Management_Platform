@@ -39,4 +39,9 @@ public class ComponentRepository(ProductDbContext db) : IComponentRepository
 
     public async Task<bool> ExistsAsync(int id) =>
         await db.Components.AnyAsync(c => c.ComponentID == id);
+
+    public async Task<bool> ExistsByNameAsync(string name, int? excludeId = null) =>
+        await db.Components.AnyAsync(c =>
+            c.Name.ToLower() == name.ToLower() &&
+            (excludeId == null || c.ComponentID != excludeId));
 }

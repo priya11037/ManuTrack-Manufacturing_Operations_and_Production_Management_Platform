@@ -1,4 +1,5 @@
 using InventoryService.Data;
+using InventoryService.Models;
 using InventoryService.Repositories;
 using InventoryService.Repositories.Interfaces;
 using InventoryService.Services;
@@ -120,6 +121,62 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
     db.Database.Migrate();
+
+    // ── One-time sync: create InventoryItems for Components that don't have one yet ──
+    try
+    {
+        // Read all ComponentIDs that already have an inventory item
+        var existingComponentIds = db.InventoryItems
+            .Where(i => i.ComponentID != null)
+            .Select(i => i.ComponentID!.Value)
+            .ToHashSet();
+
+        // Query Components table directly (same OperationsDb)
+        var components = db.Database
+            .SqlQueryRaw<ComponentSyncRow>(
+                "SELECT ComponentID, Name, MaterialType, Unit FROM Components WHERE IsActive = 1")
+            .ToList();
+
+        var missing = components.Where(c => !existingComponentIds.Contains(c.ComponentID)).ToList();
+
+        if (missing.Count > 0)
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Syncing {Count} existing component(s) to InventoryItems...", missing.Count);
+
+            foreach (var c in missing)
+            {
+                var item = new InventoryItem
+                {
+                    ItemType        = "RawMaterial",
+                    ComponentID     = c.ComponentID,
+                    ProductName     = c.Name,
+                    QuantityOnHand  = 0,
+                    MinimumQuantity = 0,
+                    Status          = "OutOfStock",
+                    Notes           = $"Auto-synced on startup · {c.MaterialType} · {c.Unit}"
+                };
+                db.InventoryItems.Add(item);
+            }
+
+            await db.SaveChangesAsync();
+            logger.LogInformation("Sync complete — {Count} inventory item(s) created.", missing.Count);
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogWarning(ex, "Component → Inventory sync failed at startup (non-fatal).");
+    }
 }
 
 app.Run();
+
+// ── Helper class for raw-SQL component sync ───────────────────────────────────
+public class ComponentSyncRow
+{
+    public int ComponentID { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string MaterialType { get; set; } = string.Empty;
+    public string Unit { get; set; } = string.Empty;
+}

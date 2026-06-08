@@ -401,4 +401,17 @@ export class QualityInspectorComponent implements OnInit {
     this.cdr.detectChanges();
   }
   logout(): void { this.auth.logout(); this.router.navigate(['/login']); }
+
+  showChangePwModal = false; changePwCurrentPassword = ''; changePwNewPassword = ''; changePwConfirmPassword = ''; changePwLoading = false; changePwError = ''; changePwSuccess = '';
+  submitChangePassword(): void {
+    this.changePwError = ''; this.changePwSuccess = '';
+    if (!this.changePwCurrentPassword || !this.changePwNewPassword || !this.changePwConfirmPassword) { this.changePwError = 'All fields are required.'; return; }
+    if (this.changePwNewPassword.length < 6) { this.changePwError = 'New password must be at least 6 characters.'; return; }
+    if (this.changePwNewPassword !== this.changePwConfirmPassword) { this.changePwError = 'New passwords do not match.'; return; }
+    this.changePwLoading = true;
+    this.auth.changePassword(this.changePwCurrentPassword, this.changePwNewPassword).subscribe({
+      next: () => { this.changePwLoading = false; this.changePwSuccess = 'Password changed successfully!'; setTimeout(() => { this.showChangePwModal = false; this.changePwCurrentPassword = ''; this.changePwNewPassword = ''; this.changePwConfirmPassword = ''; this.changePwSuccess = ''; }, 1500); },
+      error: (err: any) => { this.changePwLoading = false; this.changePwError = err?.error?.message ?? err?.error?.Message ?? 'Failed to change password.'; }
+    });
+  }
 }

@@ -1,6 +1,59 @@
 /* Planner dashboard — extends admin styles with amber accent */
 @import '../admin/admin.component.css';
 
+/* ── Floating Toast Notification ───────────────────────────────────────────── */
+.toast-popup {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px 13px 14px;
+  border-radius: 10px;
+  min-width: 260px;
+  max-width: 400px;
+  font-size: 13.5px;
+  font-weight: 500;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.toast-popup.toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.toast-popup.toast-success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+.toast-popup.toast-error {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #be123c;
+}
+.toast-icon { flex-shrink: 0; display: flex; align-items: center; }
+.toast-body { flex: 1; line-height: 1.45; }
+.toast-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  opacity: 0.55;
+  display: flex;
+  align-items: center;
+  color: inherit;
+  transition: opacity 0.15s;
+}
+.toast-close:hover { opacity: 1; }
+
 :host {
   --accent: #d97706;
   --accent-hover: #b45309;
@@ -120,3 +173,54 @@
 .an-bar-track{flex:1;height:8px;background:var(--surface3);border-radius:99px;overflow:hidden}
 .an-bar-fill{height:100%;border-radius:99px;transition:width .4s ease;min-width:3px}
 .an-bar-count{width:24px;text-align:right;font-size:12px;font-weight:700;color:var(--text)}
+
+/* ── Confirm Delete Modal ───────────────────────────────────────────────────── */
+.confirm-modal {
+  max-width: 420px;
+  text-align: center;
+  padding: 36px 32px 28px;
+  border-radius: 16px;
+}
+.confirm-icon {
+  width: 56px;
+  height: 56px;
+  background: #fff3f3;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+}
+.confirm-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke: #e53e3e;
+}
+.confirm-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.confirm-message {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+.confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.confirm-actions .t-btn {
+  min-width: 110px;
+}
+.t-btn-danger {
+  background: #e53e3e;
+  color: #fff;
+  border: none;
+}
+.t-btn-danger:hover {
+  background: #c53030;
+}

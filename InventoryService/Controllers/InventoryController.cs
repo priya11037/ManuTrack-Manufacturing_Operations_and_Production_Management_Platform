@@ -41,7 +41,7 @@ public class InventoryController(IInventoryService service) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,InventoryManager")]
+    [Authorize(Roles = "Admin,InventoryManager,Planner")]
     public async Task<ActionResult<ApiResponse<InventoryItemViewModel>>> Create([FromBody] CreateInventoryItemRequest request)
     {
         var result = await service.CreateAsync(request);

@@ -10,4 +10,5 @@ public interface IComponentRepository
     Task<Component> UpdateAsync(Component component);
     Task DeleteAsync(Component component);
     Task<bool> ExistsAsync(int id);
+    Task<bool> ExistsByNameAsync(string name, int? excludeId = null);
 }

@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -60,6 +60,10 @@ export class PlannerComponent implements OnInit {
   showTaskModal = false;
   showKpiModal = false;
   showComponentModal = false;
+  showConfirmModal = false;
+  confirmTitle = '';
+  confirmMessage = '';
+  confirmAction: (() => void) | null = null;
 
   selectedParentProductId: number | null = null;
   expandedBomProducts = new Set<number>();
@@ -106,7 +110,7 @@ export class PlannerComponent implements OnInit {
     private qualitySvc: QualityService,
     private fb: FormBuilder,
     private router: Router,
-    private cdr: ChangeDetectorRef,
+    public cdr: ChangeDetectorRef,
     private http: HttpClient
   ) {
     this.userName = this.auth.getName() ?? 'Planner';
@@ -176,7 +180,7 @@ export class PlannerComponent implements OnInit {
 
   showSection(s: Section): void { this.activeSection = s; }
 
-  // ── Quality (read-only) ──────────────────────────────
+  // -- Quality (read-only) ------------------------------
   loadQuality(): void {
     this.qualityLoading = true;
     this.qualitySvc.getAllInspections()
@@ -187,7 +191,7 @@ export class PlannerComponent implements OnInit {
       .subscribe({ next: (res: any) => { this.defects = res?.data ?? []; this.cdr.detectChanges(); }, error: () => {} });
   }
 
-  // ── Computed helpers ─────────────────────────────────
+  // -- Computed helpers ---------------------------------
   get completedWOCount(): number { return this.workOrders.filter(w => w.status === 'Completed').length; }
   get inProgressWOCount(): number { return this.workOrders.filter(w => w.status === 'InProgress').length; }
   get pendingWOCount(): number { return this.workOrders.filter(w => w.status === 'Pending').length; }
@@ -240,7 +244,7 @@ export class PlannerComponent implements OnInit {
   get highDefectsCount(): number { return this.defects.filter(d => d.severity === 'High').length; }
   get maxDefSev(): number { return Math.max(this.criticalDefectsCount, this.highDefectsCount, this.mediumDefectsCount, this.lowDefectsCount, 1); }
 
-  // â”€â”€ PRODUCTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── PRODUCTS ──────────────────────────────────────────
   get pf() { return this.productForm.controls; }
   get activeProductsList() { return this.products.filter(p => p.status === 'Active'); }
 
@@ -266,11 +270,11 @@ export class PlannerComponent implements OnInit {
         this.productForm.reset({ version: '1.0', status: 'Draft' });
         this.showToast('Product registered.'); this.loadProducts();
       },
-      error: err => { this.productLoading = false; this.showToast(err.error?.message ?? 'Failed.', 'error'); }
+      error: err => { this.productLoading = false; this.showToast(this.apiErr(err, 'Failed.'), 'error'); }
     });
   }
 
-  // â”€â”€ BOM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── BOM ───────────────────────────────────────────────
   get bf() { return this.bomForm.controls; }
 
   loadBoms(): void {
@@ -292,6 +296,21 @@ export class PlannerComponent implements OnInit {
   }
 
   get activeComponents() { return this.components.filter(c => c.isActive); }
+
+  /** Only components that are currently InStock or LowStock in Inventory (quantityOnHand > 0) */
+  get componentsInInventory() {
+    const inStockComponentIds = new Set(
+      this.inventoryItems
+        .filter(i =>
+          i.itemType === 'RawMaterial' &&
+          i.componentID != null &&
+          i.status !== 'OutOfStock' &&
+          i.quantityOnHand > 0
+        )
+        .map(i => i.componentID!)
+    );
+    return this.activeComponents.filter(c => inStockComponentIds.has(c.componentID));
+  }
 
   loadComponents(): void {
     this.componentSvc.getAll()
@@ -328,12 +347,12 @@ export class PlannerComponent implements OnInit {
           this.loadBoms(); this.cdr.detectChanges();
           setTimeout(() => { this.closeBomModal(); this.cdr.detectChanges(); }, 1500);
         },
-        error: err => { this.bomCreateLoading = false; this.showToast(err.error?.message ?? 'Failed.', 'error'); }
+        error: err => { this.bomCreateLoading = false; this.showToast(this.apiErr(err, 'Failed.'), 'error'); }
       });
   }
 
   deleteBomEntry(id: number): void {
-    this.bomSvc.delete(id).subscribe({ next: () => { this.showToast('BOM entry deleted.'); this.loadBoms(); }, error: () => {} });
+    this.bomSvc.delete(id).subscribe({ next: () => { this.showToast('BOM entry deleted.'); this.loadBoms(); }, error: err => { this.showToast(this.apiErr(err, 'Failed to remove BOM entry.'), 'error'); } });
   }
 
   isBomExpanded(id: number): boolean { return this.expandedBomProducts.has(id); }
@@ -344,7 +363,7 @@ export class PlannerComponent implements OnInit {
 
   getProductName(id: number | string): string {
     const p = this.products.find(x => x.productID === +id);
-    return p ? `${p.name} (v${p.version})` : 'â€”';
+    return p ? `${p.name} (v${p.version})` : '—';
   }
 
   createComponent(): void {
@@ -356,29 +375,21 @@ export class PlannerComponent implements OnInit {
         next: (res) => {
           this.componentCreateLoading = false;
           const created = res?.data;
-          // Auto-add to Inventory with qty=0
-          if (created) {
-            this.inventorySvc.create({
-              itemType: 'RawMaterial',
-              componentID: created.componentID,
-              productName: created.name,
-              quantityOnHand: 0,
-              minimumQuantity: 0,
-              notes: `${created.materialType} Â· ${created.unit}`
-            }).subscribe({ next: () => {}, error: () => {} });
-          }
+          // Inventory item is auto-created by the backend (ProductService ? InventoryService).
+          // Reload inventory after a brief delay to reflect the new entry.
+          setTimeout(() => this.loadInventory(), 500);
           this.showComponentModal = false;
           this.componentForm.reset();
           this.showToast(`"${created?.name ?? v.name}" added to Inventory with 0 quantity.`);
           this.loadComponents();
         },
-        error: err => { this.componentCreateLoading = false; this.showToast(err.error?.message ?? 'Failed.', 'error'); }
+        error: err => { this.componentCreateLoading = false; this.showToast(this.apiErr(err, 'Failed.'), 'error'); }
       });
   }
 
   get cf() { return this.componentForm.controls; }
 
-  // â”€â”€ WORK ORDERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── WORK ORDERS ───────────────────────────────────────
   get wf() { return this.workOrderForm.controls; }
   get tf() { return this.taskForm.controls; }
 
@@ -416,22 +427,44 @@ export class PlannerComponent implements OnInit {
         this.workOrderLoading = false; this.showWorkOrderModal = false;
         this.workOrderForm.reset(); this.showToast('Work order created.'); this.loadWorkOrders();
       },
-      error: err => { this.workOrderLoading = false; this.showToast(err.error?.message ?? 'Failed.', 'error'); }
+      error: err => { this.workOrderLoading = false; this.showToast(this.apiErr(err, 'Failed.'), 'error'); }
     });
   }
 
   updateWorkOrderStatus(wo: WorkOrderViewModel, status: string): void {
     this.workOrderSvc.updateStatus(wo.workOrderID, status).subscribe({
       next: () => { wo.status = status; this.showToast('Status updated.'); this.cdr.detectChanges(); },
-      error: err => this.showToast(err.error?.message ?? 'Failed.', 'error')
+      error: err => this.showToast(this.apiErr(err, 'Failed.'), 'error')
     });
   }
 
   deleteWorkOrder(wo: WorkOrderViewModel): void {
-    this.workOrderSvc.delete(wo.workOrderID).subscribe({
-      next: () => { this.workOrders = this.workOrders.filter(w => w.workOrderID !== wo.workOrderID); this.showToast('Deleted.'); this.cdr.detectChanges(); },
-      error: err => this.showToast(err.error?.message ?? 'Failed.', 'error')
-    });
+    this.confirmTitle = 'Delete Work Order';
+    this.confirmMessage = `Are you sure you want to delete WO-${wo.workOrderID} (${wo.productName})? This action cannot be undone.`;
+    this.confirmAction = () => {
+      this.workOrderSvc.delete(wo.workOrderID).subscribe({
+        next: () => {
+          this.workOrders = this.workOrders.filter(w => w.workOrderID !== wo.workOrderID);
+          this.showToast(`WO-${wo.workOrderID} deleted successfully.`);
+          this.cdr.detectChanges();
+        },
+        error: err => {
+          const status = err?.status;
+          const msg = status === 403
+            ? 'You do not have permission to delete this work order.'
+            : status === 404
+            ? 'Work order not found.'
+            : this.apiErr(err, 'Failed to delete work order.');
+          this.showToast(msg, 'error');
+        }
+      });
+    };
+    this.showConfirmModal = true;
+  }
+
+  runConfirm(): void {
+    this.showConfirmModal = false;
+    if (this.confirmAction) { this.confirmAction(); this.confirmAction = null; }
   }
 
   isWorkOrderExpanded(id: number): boolean { return this.expandedWorkOrders.has(id); }
@@ -475,7 +508,7 @@ export class PlannerComponent implements OnInit {
     this.workOrderSvc.createTask({ workOrderID: this.selectedWorkOrderForTask!.workOrderID, description: v.description, assignedTo: v.assignedTo, notes: v.notes || undefined })
       .subscribe({
         next: () => { this.taskLoading = false; this.showTaskModal = false; this.taskForm.reset(); this.showToast('Task added.'); this.loadTasksForWorkOrder(this.selectedWorkOrderForTask!.workOrderID); },
-        error: err => { this.taskLoading = false; this.showToast(err.error?.message ?? 'Failed.', 'error'); }
+        error: err => { this.taskLoading = false; this.showToast(this.apiErr(err, 'Failed.'), 'error'); }
       });
   }
 
@@ -486,7 +519,7 @@ export class PlannerComponent implements OnInit {
       const wo = this.workOrders.find(w => w.workOrderID === workOrderId);
       if (wo && wo.status !== 'Completed') {
         this.workOrderSvc.updateStatus(workOrderId, 'Completed').subscribe({
-          next: () => { wo.status = 'Completed'; this.showToast(`✓ All tasks done — WO-${workOrderId} auto-completed.`); this.cdr.detectChanges(); },
+          next: () => { wo.status = 'Completed'; this.showToast(`? All tasks done � WO-${workOrderId} auto-completed.`); this.cdr.detectChanges(); },
           error: () => {}
         });
       }
@@ -520,7 +553,7 @@ export class PlannerComponent implements OnInit {
     return m[s] ?? 'b-draft';
   }
 
-  // â”€â”€ INVENTORY (view only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── INVENTORY (view only) ─────────────────────────────
   loadInventory(): void {
     this.inventoryLoading = true;
     this.inventorySvc.getAll()
@@ -538,7 +571,7 @@ export class PlannerComponent implements OnInit {
 
   get lowStockAlert() { return this.inventoryItems.filter(i => i.status !== 'InStock').length; }
 
-  // â”€â”€ ANALYTICS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── ANALYTICS ─────────────────────────────────────────
   get kf() { return this.kpiForm.controls; }
 
   loadAnalytics(): void {
@@ -565,11 +598,11 @@ export class PlannerComponent implements OnInit {
           this.showToast('KPI report generated.');
           if (res?.data) { this.kpiReports = [res.data, ...this.kpiReports]; this.cdr.detectChanges(); }
         },
-        error: err => { this.kpiLoading = false; this.showToast(err.error?.message ?? 'Failed.', 'error'); }
+        error: err => { this.kpiLoading = false; this.showToast(this.apiErr(err, 'Failed.'), 'error'); }
       });
   }
 
-  // â”€â”€ NOTIFICATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── NOTIFICATIONS ─────────────────────────────────────
   loadNotifications(): void {
     this.notificationsLoading = true;
     this.http.get<any>('http://localhost:5000/api/v1/notifications/my')
@@ -595,17 +628,21 @@ export class PlannerComponent implements OnInit {
     return m[p] ?? 'b-draft';
   }
 
-  // â”€â”€ UTILS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── UTILS ─────────────────────────────────────────────
+  /** Extracts the readable message from an HTTP error (handles PascalCase + camelCase API responses). */
+  apiErr(err: any, fallback = 'Something went wrong.'): string {
+    return err?.error?.message ?? err?.error?.Message ?? err?.message ?? fallback;
+  }
+
   showToast(msg: string, type: 'success' | 'error' = 'success'): void {
-    if (type === 'error') {
-      this.errorAlert = msg;
-      this.toastMsg = '';
-    } else {
-      this.toastMsg = msg;
-      this.errorAlert = '';
-    }
-    setTimeout(() => { this.toastMsg = ''; this.errorAlert = ''; this.cdr.detectChanges(); }, type === 'error' ? 7000 : 4000);
-    this.cdr.detectChanges();
+    this.toastMsg = '';
+    this.errorAlert = '';
+    this.cdr.detectChanges();              // reset first so animation re-triggers
+    setTimeout(() => {
+      if (type === 'error') { this.errorAlert = msg; } else { this.toastMsg = msg; }
+      this.cdr.detectChanges();
+      setTimeout(() => { this.toastMsg = ''; this.errorAlert = ''; this.cdr.detectChanges(); }, type === 'error' ? 6000 : 3500);
+    }, 10);
   }
 
   initials(name: string): string {
@@ -626,4 +663,28 @@ export class PlannerComponent implements OnInit {
   }
 
   logout(): void { this.auth.logout(); this.router.navigate(['/login'], { replaceUrl: true }); }
+
+  // ── Change Password ──────────────────────────────────────────────────────
+  showChangePwModal = false;
+  changePwCurrentPassword = '';
+  changePwNewPassword = '';
+  changePwConfirmPassword = '';
+  changePwLoading = false;
+  changePwError = '';
+  changePwSuccess = '';
+
+  submitChangePassword(): void {
+    this.changePwError = ''; this.changePwSuccess = '';
+    if (!this.changePwCurrentPassword || !this.changePwNewPassword || !this.changePwConfirmPassword) { this.changePwError = 'All fields are required.'; return; }
+    if (this.changePwNewPassword.length < 6) { this.changePwError = 'New password must be at least 6 characters.'; return; }
+    if (this.changePwNewPassword !== this.changePwConfirmPassword) { this.changePwError = 'New passwords do not match.'; return; }
+    this.changePwLoading = true;
+    this.auth.changePassword(this.changePwCurrentPassword, this.changePwNewPassword).subscribe({
+      next: () => {
+        this.changePwLoading = false; this.changePwSuccess = 'Password changed successfully!';
+        setTimeout(() => { this.showChangePwModal = false; this.changePwCurrentPassword = ''; this.changePwNewPassword = ''; this.changePwConfirmPassword = ''; this.changePwSuccess = ''; }, 1500);
+      },
+      error: (err: any) => { this.changePwLoading = false; this.changePwError = err?.error?.message ?? err?.error?.Message ?? 'Failed to change password.'; }
+    });
+  }
 }
