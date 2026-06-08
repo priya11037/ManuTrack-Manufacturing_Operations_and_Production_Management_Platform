@@ -188,7 +188,12 @@
               </tr>
             </tbody>
           </table>
-          <div style="margin-top:8px;color:#6b7280">Ask the Inventory Manager to restock these items before creating this work order.</div>
+          <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
+            <button type="button" class="t-btn t-btn-primary" style="font-size:12px;padding:6px 14px" (click)="notifyInventoryManager()" [disabled]="stockNotifyLoading || stockNotifySent">
+              {{ stockNotifyLoading ? 'Sending…' : stockNotifySent ? '✓ Inventory Manager Notified' : 'Notify Inventory Manager' }}
+            </button>
+            <span *ngIf="stockNotifySent" style="font-size:12px;color:#16a34a">They will receive a restock request with the full shortfall details.</span>
+          </div>
         </div>
       </div>
       <div class="modal-foot">
@@ -513,7 +518,7 @@
             <div class="page-title">Work Orders</div>
             <div class="page-sub">Create and manage manufacturing work orders and tasks</div>
           </div>
-          <button class="t-btn t-btn-primary" (click)="showWorkOrderModal=true; workOrderForm.reset()">+ Create Work Order</button>
+          <button class="t-btn t-btn-primary" (click)="showWorkOrderModal=true; workOrderForm.reset(); woStockError=''; stockShortfalls=[]; stockNotifySent=false">+ Create Work Order</button>
         </div>
         <div class="summary-strip" style="grid-template-columns:repeat(4,1fr)">
           <div class="sum-card"><div class="sum-accent" style="background:var(--accent)"></div><div class="sum-label">Total</div><div class="sum-val">{{ workOrders.length }}</div></div>

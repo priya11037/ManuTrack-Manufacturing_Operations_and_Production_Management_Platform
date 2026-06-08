@@ -89,6 +89,9 @@ export class PlannerComponent implements OnInit {
   workOrderLoading = false;
   woStockError = '';
   stockShortfalls: { component: string; required: number; available: number; unit: string }[] = [];
+  stockNotifyLoading = false;
+  stockNotifySent = false;
+  stockNotifyProductName = '';
   taskLoading = false;
   kpiLoading = false;
   componentCreateLoading = false;
@@ -442,6 +445,8 @@ export class PlannerComponent implements OnInit {
     if (shortfalls.length > 0) {
       this.woStockError = 'Insufficient stock for the following BOM components:';
       this.stockShortfalls = shortfalls;
+      this.stockNotifyProductName = this.products.find(p => p.productID === productId)?.name ?? '';
+      this.stockNotifySent = false;
       return;
     }
 
@@ -460,6 +465,26 @@ export class PlannerComponent implements OnInit {
         this.workOrderForm.reset(); this.showToast('Work order created.'); this.loadWorkOrders();
       },
       error: err => { this.workOrderLoading = false; this.showToast(this.apiErr(err, 'Failed.'), 'error'); }
+    });
+  }
+
+  notifyInventoryManager(): void {
+    const product = this.stockNotifyProductName;
+    const lines = this.stockShortfalls
+      .map(s => `• ${s.component}: needs ${s.required} ${s.unit}, only ${s.available} available`)
+      .join('\n');
+    const message = `Work order for "${product}" cannot be created due to insufficient stock:\n\n${lines}\n\nPlease raise purchase orders for these items.`;
+
+    this.stockNotifyLoading = true;
+    this.notificationSvc.notifyRole({
+      targetRole: 'InventoryManager',
+      title: `Restock Required — ${product}`,
+      message,
+      category: 'Inventory',
+      priority: 'High'
+    }).subscribe({
+      next: () => { this.stockNotifyLoading = false; this.stockNotifySent = true; },
+      error: () => { this.stockNotifyLoading = false; this.showToast('Failed to send notification.', 'error'); }
     });
   }
 
