@@ -28,6 +28,7 @@ type InvTab = 'items' | 'po' | 'suppliers';
 export class InventoryManagerComponent implements OnInit {
   activeSection: Section = 'overview';
   inventoryTab: InvTab = 'items';
+  stockTab: 'components' | 'finished' = 'components';
 
   userName: string;
   userInitials: string;
@@ -194,6 +195,10 @@ export class InventoryManagerComponent implements OnInit {
   get af()  { return this.adjustForm.controls; }
   get pof() { return this.poForm.controls; }
   get sf()  { return this.supplierForm.controls; }
+
+  get componentItems()    { return this.inventoryItems.filter(i => i.itemType !== 'Product'); }
+  get finishedItems()     { return this.inventoryItems.filter(i => i.itemType === 'Product'); }
+  get visibleStockItems() { return this.stockTab === 'components' ? this.componentItems : this.finishedItems; }
 
   get inStockCount()    { return this.inventoryItems.filter(i => i.status==='InStock').length; }
   get lowStockCount()   { return this.inventoryItems.filter(i => i.status==='LowStock').length; }
