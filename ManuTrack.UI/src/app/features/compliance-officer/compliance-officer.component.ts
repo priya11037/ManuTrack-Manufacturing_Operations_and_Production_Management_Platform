@@ -74,14 +74,12 @@ export class ComplianceOfficerComponent implements OnInit, AfterViewInit, OnDest
   auditActionFilter = '';
 
   showReportModal = false;
-  showApproveModal = false;
   showKpiModal = false;
   selectedReport: ComplianceReportViewModel | null = null;
 
   reportForm!: FormGroup;
-  approveForm!: FormGroup;
   kpiForm!: FormGroup;
-  reportLoading = false; approveLoading = false; kpiLoading = false;
+  reportLoading = false; kpiLoading = false;
 
   toastMsg = ''; toastType: 'success' | 'error' = 'success';
   errorAlert = '';
@@ -120,10 +118,6 @@ export class ComplianceOfficerComponent implements OnInit, AfterViewInit, OnDest
       scope: ['', [Validators.required, Validators.minLength(5)]],
       periodStart: [''],
       periodEnd: ['']
-    });
-
-    this.approveForm = this.fb.group({
-      approvedBy: [this.userName || '', Validators.required]
     });
 
     this.kpiForm = this.fb.group({
@@ -335,7 +329,6 @@ export class ComplianceOfficerComponent implements OnInit, AfterViewInit, OnDest
   materialTypeBadge(t: string): string { const m: Record<string,string> = { RawMaterial:'b-planner', Part:'b-operator', SubAssembly:'b-inventory', Chemical:'b-inspector', Consumable:'b-inactive' }; return m[t] ?? 'b-draft'; }
 
   get rf() { return this.reportForm.controls; }
-  get af() { return this.approveForm.controls; }
   get kf() { return this.kpiForm.controls; }
 
   getKpiTypeDesc(value: string): string {
@@ -486,24 +479,16 @@ export class ComplianceOfficerComponent implements OnInit, AfterViewInit, OnDest
     });
   }
 
-  openApprove(report: ComplianceReportViewModel): void {
-    this.selectedReport = report;
-    this.approveForm.patchValue({ approvedBy: this.userName });
-    this.showApproveModal = true;
-  }
-
-  submitApprove(): void {
-    if (this.approveForm.invalid) { this.approveForm.markAllAsTouched(); return; }
-    this.approveLoading = true;
-    this.complianceSvc.approveReport(this.selectedReport!.reportID, this.af['approvedBy'].value)
-      .subscribe({
-        next: res => {
-          this.approveLoading = false; this.showApproveModal = false;
-          this.showToast('Report approved.');
-          if (res?.data) { const idx = this.reports.findIndex(r => r.reportID === this.selectedReport!.reportID); if (idx >= 0) { this.reports[idx] = res.data; this.reports = [...this.reports]; } this.cdr.detectChanges(); }
-        },
-        error: err => { this.approveLoading = false; this.showToast(err.error?.message ?? 'Failed.', 'error'); }
-      });
+  deleteReport(report: ComplianceReportViewModel): void {
+    if (!confirm(`Delete "${report.title}"? This cannot be undone.`)) return;
+    this.complianceSvc.deleteReport(report.reportID).subscribe({
+      next: () => {
+        this.reports = this.reports.filter(r => r.reportID !== report.reportID);
+        this.showToast('Report deleted.');
+        this.cdr.detectChanges();
+      },
+      error: err => this.showToast(err.error?.message ?? 'Failed to delete.', 'error')
+    });
   }
 
   reportStatusBadge(s: string): string {

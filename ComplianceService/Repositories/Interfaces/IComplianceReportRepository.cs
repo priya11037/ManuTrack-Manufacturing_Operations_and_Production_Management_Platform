@@ -9,5 +9,6 @@ public interface IComplianceReportRepository
     Task<ComplianceReport> CreateAsync(ComplianceReport report);
     Task<ComplianceReport> UpdateAsync(ComplianceReport report);
     Task<bool> ExistsAsync(int id);
+    Task<bool> DeleteAsync(int id);
 }
 

@@ -49,10 +49,19 @@ public class ComplianceReportController(IComplianceReportService service) : Cont
     }
 
     [HttpPut("{id:int}/approve")]
-    [Authorize(Roles = "Admin,ComplianceOfficer")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Approve(int id, [FromBody] ApproveReportRequest request)
     {
         var result = await service.ApproveReportAsync(id, request);
+        if (!result.Success) return BadRequest(result);
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,ComplianceOfficer")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var result = await service.DeleteAsync(id);
         if (!result.Success) return BadRequest(result);
         return Ok(result);
     }

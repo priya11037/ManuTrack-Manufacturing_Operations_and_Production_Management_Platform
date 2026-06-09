@@ -58,6 +58,10 @@ export class ComplianceService {
     return this.http.put<ApiResponse<ComplianceReportViewModel>>(`${this.compBase}/${id}/approve`, { approvedBy });
   }
 
+  deleteReport(id: number): Observable<ApiResponse<boolean>> {
+    return this.http.delete<ApiResponse<boolean>>(`${this.compBase}/${id}`);
+  }
+
   // Audit Logs
   getAuditLogs(page = 1, pageSize = 20, serviceName?: string, action?: string, from?: string, to?: string): Observable<ApiResponse<PagedAuditViewModel>> {
     let url = `${this.auditBase}?page=${page}&pageSize=${pageSize}`;

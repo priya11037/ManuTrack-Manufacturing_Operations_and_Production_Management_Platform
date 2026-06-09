@@ -99,9 +99,26 @@ public class NotificationServiceImpl(
     public async Task<ApiResponse<IEnumerable<NotificationViewModel>>> BroadcastAsync(
         BroadcastNotificationRequest request)
     {
+        var client = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "AuthService");
+        var roles = new[] { "Admin", "Planner", "Operator", "InventoryManager", "Inspector", "ComplianceOfficer" };
+        var userIds = new HashSet<int>();
+        foreach (var role in roles)
+        {
+            try
+            {
+                var resp = await client.GetFromJsonAsync<ApiResponse<List<UserIdDto>>>(
+                    $"api/v1/auth/users/by-role/{role}");
+                foreach (var u in resp?.Data ?? []) userIds.Add(u.UserID);
+            }
+            catch { /* skip role if AuthService unavailable */ }
+        }
+
+        if (userIds.Count == 0)
+            return ApiResponse<IEnumerable<NotificationViewModel>>.Ok([], "No active users found to broadcast to.");
+
         var expiry = GetExpiryDate(request.Category);
 
-        var notifications = request.UserIDs.Select(uid => new Notification
+        var notifications = userIds.Select(uid => new Notification
         {
             UserID = uid,
             Title = request.Title,
@@ -109,21 +126,19 @@ public class NotificationServiceImpl(
             Category = request.Category,
             Priority = request.Priority,
             Status = NotificationStatus.Unread,
-            ExpiryDate = expiry,        // Change 6
+            ExpiryDate = expiry,
             CreatedDate = DateTime.UtcNow
         });
 
         var created = await repo.CreateBulkAsync(notifications);
 
-        // Change 3: audit log
         await LogAuditAsync("Broadcast Notification", "Notification",
-            string.Join(",", request.UserIDs.Take(10)),
-            $"Category: {request.Category}, Priority: {request.Priority}, " +
-            $"Recipients: {request.UserIDs.Count}");
+            string.Join(",", userIds.Take(10)),
+            $"Category: {request.Category}, Priority: {request.Priority}, Recipients: {userIds.Count}");
 
         return ApiResponse<IEnumerable<NotificationViewModel>>.Ok(
             created.Select(Map),
-            $"Broadcast sent to {request.UserIDs.Count} users.");
+            $"Broadcast sent to {userIds.Count} users.");
     }
 
     public async Task<ApiResponse<IEnumerable<NotificationViewModel>>> NotifyRoleAsync(NotifyRoleRequest request)

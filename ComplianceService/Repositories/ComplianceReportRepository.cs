@@ -32,5 +32,14 @@ public class ComplianceReportRepository(ComplianceReportDbContext db) : IComplia
     }
 
     public async Task<bool> ExistsAsync(int id) => await db.ComplianceReports.AnyAsync(r => r.ReportID == id);
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var report = await db.ComplianceReports.FindAsync(id);
+        if (report == null) return false;
+        db.ComplianceReports.Remove(report);
+        await db.SaveChangesAsync();
+        return true;
+    }
 }
 

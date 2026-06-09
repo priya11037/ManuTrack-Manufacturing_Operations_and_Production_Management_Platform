@@ -220,6 +220,10 @@ export class QualityInspectorComponent implements OnInit {
   openUpdateResult(insp: InspectionViewModel): void {
     this.selectedInspectionForResult = insp;
     this.resultForm.reset({ status: 'Completed' });
+    this.resultForm.get('result')!.valueChanges.subscribe(val => {
+      if (val === 'Pass') this.resultForm.patchValue({ status: 'Completed' }, { emitEvent: false });
+      else if (val === 'Fail') this.resultForm.patchValue({ status: 'InProgress' }, { emitEvent: false });
+    });
     this.showResultModal = true;
   }
 

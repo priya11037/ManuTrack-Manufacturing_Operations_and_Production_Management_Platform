@@ -11,4 +11,5 @@ public interface IComplianceReportService
     Task<ApiResponse<ComplianceReportViewModel>> CreateAsync(CreateComplianceReportRequest request);
     Task<ApiResponse<ComplianceReportViewModel>> UpdateStatusAsync(int id, UpdateReportStatusRequest request);
     Task<ApiResponse<ComplianceReportViewModel>> ApproveReportAsync(int id, ApproveReportRequest request);
+    Task<ApiResponse<bool>> DeleteAsync(int id);
 }
