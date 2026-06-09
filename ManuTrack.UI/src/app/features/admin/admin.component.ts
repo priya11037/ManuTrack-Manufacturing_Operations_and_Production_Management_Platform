@@ -2,6 +2,7 @@
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { ComplianceService, ComplianceReportViewModel } from '../../core/services/compliance.service';
 import { ProductService, ProductViewModel } from '../../core/services/product.service';
 import { BomService, BomViewModel } from '../../core/services/bom.service';
 import { AuditService, AuditEntryViewModel } from '../../core/services/audit.service';
@@ -28,7 +29,7 @@ export interface AuthUserViewModel {
   isActive: boolean;
 }
 
-type Section = 'overview' | 'users' | 'products' | 'bom' | 'workorders' | 'inventory' | 'quality' | 'analytics' | 'notifications' | 'audit';
+type Section = 'overview' | 'users' | 'products' | 'bom' | 'workorders' | 'inventory' | 'quality' | 'analytics' | 'notifications' | 'compliance' | 'audit';
 
 @Component({
   selector: 'app-admin',
@@ -96,6 +97,12 @@ export class AdminComponent implements OnInit {
   showBroadcastModal = false;
   broadcastForm!: FormGroup;
   broadcastLoading = false;
+
+  complianceReports: ComplianceReportViewModel[] = [];
+  complianceLoading = false;
+  showApproveReportModal = false;
+  selectedComplianceReport: ComplianceReportViewModel | null = null;
+  approveReportLoading = false;
 
   // ── Quality (read-only) ──────────────────────────────
   inspections: InspectionViewModel[] = [];
@@ -170,6 +177,7 @@ export class AdminComponent implements OnInit {
     private notificationSvc: NotificationAdminService,
     private qualitySvc: QualityService,
     private analyticsSvc: AnalyticsService,
+    private complianceSvc: ComplianceService,
     private fb: FormBuilder,
     private router: Router,
     private http: HttpClient,
@@ -266,7 +274,7 @@ export class AdminComponent implements OnInit {
     this.broadcastForm = this.fb.group({
       title: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100)]],
       message: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(500)]],
-      priority: ['Normal', Validators.required]
+      priority: ['Medium', Validators.required]
     });
   }
 
@@ -283,6 +291,7 @@ export class AdminComponent implements OnInit {
     this.loadComponents();
     this.loadQuality();
     this.loadAnalytics();
+    this.loadComplianceReports();
   }
 
   showSection(s: Section): void {
@@ -295,7 +304,7 @@ export class AdminComponent implements OnInit {
       products: 'Product Setup', bom: 'BOM Management',
       workorders: 'Work Orders', inventory: 'Inventory & Stock',
       quality: 'Quality Overview', analytics: 'Analytics & KPI',
-      notifications: 'Notifications', audit: 'Audit Logs'
+      notifications: 'Notifications', compliance: 'Compliance Reports', audit: 'Audit Logs'
     };
     return map[this.activeSection];
   }
@@ -970,6 +979,47 @@ export class AdminComponent implements OnInit {
     });
   }
 
+  // ── Compliance Reports ───────────────────────────────
+  loadComplianceReports(): void {
+    this.complianceLoading = true;
+    this.complianceSvc.getAllReports()
+      .pipe(timeout(10000), finalize(() => { this.complianceLoading = false; this.cdr.detectChanges(); }))
+      .subscribe({
+        next: res => { this.complianceReports = res?.data ?? []; this.cdr.detectChanges(); },
+        error: () => {}
+      });
+  }
+
+  get pendingApprovalCount(): number { return this.complianceReports.filter(r => r.status === 'InReview').length; }
+
+  openApproveReport(report: ComplianceReportViewModel): void {
+    this.selectedComplianceReport = report;
+    this.showApproveReportModal = true;
+  }
+
+  submitApproveReport(): void {
+    if (!this.selectedComplianceReport) return;
+    this.approveReportLoading = true;
+    this.complianceSvc.approveReport(this.selectedComplianceReport.reportID, this.userName)
+      .subscribe({
+        next: res => {
+          this.approveReportLoading = false; this.showApproveReportModal = false;
+          this.showToast('Report approved.');
+          if (res?.data) {
+            const idx = this.complianceReports.findIndex(r => r.reportID === this.selectedComplianceReport!.reportID);
+            if (idx >= 0) { this.complianceReports[idx] = res.data; this.complianceReports = [...this.complianceReports]; }
+            this.cdr.detectChanges();
+          }
+        },
+        error: err => { this.approveReportLoading = false; this.showToast(err.error?.message ?? 'Failed to approve.', 'error'); }
+      });
+  }
+
+  complianceReportStatusBadge(s: string): string {
+    const m: Record<string, string> = { Draft: 'b-draft', InReview: 'b-planner', Approved: 'b-active', Closed: 'b-inactive' };
+    return m[s] ?? 'b-draft';
+  }
+
   get brf() { return this.broadcastForm.controls; }
 
   broadcastNotification(): void {
@@ -981,7 +1031,7 @@ export class AdminComponent implements OnInit {
         next: () => {
           this.broadcastLoading = false;
           this.showBroadcastModal = false;
-          this.broadcastForm.reset({ priority: 'Normal' });
+          this.broadcastForm.reset({ priority: 'Medium' });
           this.showToast('Broadcast sent to all users.');
           this.loadNotifications();
         },
@@ -1270,7 +1320,7 @@ export class AdminComponent implements OnInit {
   }
 
   poStatusBadge(s: string): string {
-    const m: Record<string,string> = { Pending:'b-draft', Approved:'b-planner', Ordered:'b-inventory', Received:'b-active', Cancelled:'b-inactive' };
+    const m: Record<string,string> = { Pending:'b-draft', Approved:'b-planner', Rejected:'b-admin', Ordered:'b-inventory', Received:'b-active', Cancelled:'b-inactive' };
     return m[s] ?? 'b-draft';
   }
 

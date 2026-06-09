@@ -200,6 +200,20 @@ public class ComplianceReportServiceImpl(
         return ApiResponse<ComplianceReportViewModel>.Ok(Map(updated), "Report approved.");
     }
 
+    public async Task<ApiResponse<bool>> DeleteAsync(int id)
+    {
+        var report = await repo.GetByIdAsync(id);
+        if (report == null)
+            return ApiResponse<bool>.Fail($"Compliance report {id} not found.");
+
+        if (report.Status != ComplianceReportStatus.Draft)
+            return ApiResponse<bool>.Fail("Only Draft reports can be deleted.");
+
+        await repo.DeleteAsync(id);
+        await WriteAuditAsync("Deleted ComplianceReport", id.ToString(), $"Title: {report.Title}");
+        return ApiResponse<bool>.Ok(true, "Report deleted.");
+    }
+
     // ── Change 7: Metrics calculation ─────────────────────────────────────────
     private async Task<string> BuildMetricsJsonAsync(DateTime from, DateTime to)
     {

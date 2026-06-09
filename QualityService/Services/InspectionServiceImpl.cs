@@ -146,8 +146,8 @@ public class InspectionServiceImpl(
             if (status == "Cancelled")
                 return "Cannot create inspection for a cancelled work order.";
 
-            if (status == "Pending" || status == "Scheduled")
-                return "Cannot create inspection for a work order that has not started yet.";
+            if (status != "Completed")
+                return "Inspection can only be scheduled after the work order is fully completed.";
 
             return null;
         }

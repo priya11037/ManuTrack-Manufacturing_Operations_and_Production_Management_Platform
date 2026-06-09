@@ -64,8 +64,8 @@ public class CreatePurchaseOrderItemRequest
 public class UpdatePurchaseOrderStatusRequest
 {
     [Required(ErrorMessage = "Status is required.")]
-    [RegularExpression("^(Pending|Approved|Ordered|Received|Cancelled)$",
-        ErrorMessage = "Status must be one of: Pending, Approved, Ordered, Received, Cancelled.")]
+    [RegularExpression("^(Pending|Approved|Rejected|Ordered|Received|Cancelled)$",
+        ErrorMessage = "Status must be one of: Pending, Approved, Rejected, Ordered, Received, Cancelled.")]
     public string Status { get; set; } = string.Empty;
 }
 
