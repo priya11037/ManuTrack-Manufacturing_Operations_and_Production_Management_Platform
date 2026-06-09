@@ -23,7 +23,7 @@ public class InventoryRepository(InventoryDbContext db) : IInventoryRepository
     }
 
     public async Task<InventoryItem?> GetByIdAsync(int id) =>
-        cawait db.InventoryItems
+        await db.InventoryItems
             .Include(i => i.Location)
             .FirstOrDefaultAsync(i => i.InventoryID == id);
 
