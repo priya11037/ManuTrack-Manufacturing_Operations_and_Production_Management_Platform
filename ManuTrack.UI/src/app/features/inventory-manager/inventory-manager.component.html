@@ -84,13 +84,14 @@
 
 <!-- Create PO -->
 <div class="modal-overlay" *ngIf="showPOModal" (click)="showPOModal=false">
-  <div class="modal" style="max-width:540px" (click)="$event.stopPropagation()">
+  <div class="modal" style="max-width:720px" (click)="$event.stopPropagation()">
     <div class="modal-head">
-      <div><div class="modal-title">Create Purchase Order</div><div class="modal-subtitle">Order stock from a supplier</div></div>
+      <div><div class="modal-title">Create Purchase Order</div><div class="modal-subtitle">Order multiple items from a supplier in one PO</div></div>
       <button class="modal-close" (click)="showPOModal=false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <form [formGroup]="poForm" (ngSubmit)="createPO()">
       <div class="modal-body"><div class="form-grid">
+        <!-- Supplier + Date row -->
         <div class="form-field" style="grid-column:1/-1"><label>Supplier</label>
           <div style="display:flex;gap:8px">
             <select class="form-input" formControlName="supplierName" style="flex:1">
@@ -103,20 +104,44 @@
         <div class="form-field"><label>Expected Delivery</label>
           <input class="form-input" formControlName="expectedDeliveryDate" type="date">
           <span class="field-err" *ngIf="pof['expectedDeliveryDate'].invalid && pof['expectedDeliveryDate'].touched">Required.</span></div>
-        <div class="form-field"><label>Inventory Item</label>
-          <select class="form-input" formControlName="inventoryID" (change)="onPOItemSelect($event)">
-            <option value="">— Select item —</option>
-            <option *ngFor="let i of inventoryItems" [value]="i.inventoryID">{{ i.productName }} ({{ i.itemType==='RawMaterial'?'Raw':'Product' }})</option>
-          </select>
-          <span class="field-err" *ngIf="pof['inventoryID'].invalid && pof['inventoryID'].touched">Required.</span></div>
-        <div class="form-field"><label>Quantity</label>
-          <input class="form-input" formControlName="quantity" type="number" min="1" step="0.01" placeholder="e.g. 500">
-          <span class="field-err" *ngIf="pof['quantity'].invalid && pof['quantity'].touched">Required.</span></div>
-        <div class="form-field"><label>Unit Price (₹)</label>
-          <input class="form-input" formControlName="unitPrice" type="number" min="0" step="0.01" placeholder="e.g. 250.00">
-          <span class="field-err" *ngIf="pof['unitPrice'].invalid && pof['unitPrice'].touched">Required.</span></div>
         <div class="form-field"><label>Notes <span style="color:var(--muted2);font-weight:400">(optional)</span></label>
           <input class="form-input" formControlName="notes" placeholder="Any notes…"></div>
+
+        <!-- Line Items -->
+        <div class="form-field" style="grid-column:1/-1">
+          <label>Items to Order</label>
+          <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <!-- Header -->
+            <div style="display:grid;grid-template-columns:1fr 110px 120px 110px 32px;gap:8px;padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border)">
+              <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Item</span>
+              <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Qty</span>
+              <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Unit Price (₹)</span>
+              <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Subtotal</span>
+              <span></span>
+            </div>
+            <!-- Rows -->
+            <div *ngFor="let li of poLineItems; let i = index"
+                 style="display:grid;grid-template-columns:1fr 110px 120px 110px 32px;gap:8px;padding:8px 12px;align-items:center;border-bottom:1px solid var(--border)">
+              <select class="form-input" style="font-size:13px;padding:6px 8px" [(ngModel)]="li.inventoryID" [ngModelOptions]="{standalone:true}">
+                <option value="">— Select item —</option>
+                <option *ngFor="let inv of inventoryItems" [value]="inv.inventoryID">{{ inv.productName }}</option>
+              </select>
+              <input class="form-input" style="font-size:13px;padding:6px 8px" type="number" min="0.001" step="0.01" placeholder="0" [(ngModel)]="li.quantity" [ngModelOptions]="{standalone:true}">
+              <input class="form-input" style="font-size:13px;padding:6px 8px" type="number" min="0" step="0.01" placeholder="0.00" [(ngModel)]="li.unitPrice" [ngModelOptions]="{standalone:true}">
+              <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text)">₹{{ poLineSubtotal(li) | number:'1.2-2' }}</span>
+              <button type="button" style="width:28px;height:28px;border:none;background:var(--red-light,#fee2e2);color:var(--red,#ef4444);border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0"
+                      *ngIf="poLineItems.length > 1" (click)="removePoLineItem(i)" title="Remove row">✕</button>
+              <span *ngIf="poLineItems.length === 1"></span>
+            </div>
+            <!-- Footer -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface2)">
+              <button type="button" class="t-btn" style="font-size:12px;padding:5px 12px" (click)="addPoLineItem()">+ Add Item</button>
+              <span style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--text)">
+                Total: ₹{{ poGrandTotal() | number:'1.2-2' }}
+              </span>
+            </div>
+          </div>
+        </div>
       </div></div>
       <div class="modal-foot">
         <button type="button" class="t-btn" (click)="showPOModal=false">Cancel</button>
@@ -317,7 +342,7 @@
           <div class="page-intro"><div class="page-title">Inventory Management</div><div class="page-sub">Full stock control — add items, adjust quantities, manage POs and suppliers</div></div>
           <div style="display:flex;gap:8px">
             <button class="t-btn" *ngIf="inventoryTab==='items'" (click)="showInventoryModal=true; inventoryForm.reset({itemType:'Product'})">+ Add Item</button>
-            <button class="t-btn t-btn-primary" *ngIf="inventoryTab==='po'" (click)="showPOModal=true; poForm.reset()">+ Create PO</button>
+            <button class="t-btn t-btn-primary" *ngIf="inventoryTab==='po'" (click)="showPOModal=true; poForm.reset(); poLineItems=[{inventoryID:'',quantity:'',unitPrice:''}]">+ Create PO</button>
             <button class="t-btn t-btn-primary" *ngIf="inventoryTab==='suppliers'" (click)="showSupplierModal=true; supplierForm.reset()">+ Add Supplier</button>
           </div>
         </div>
@@ -379,7 +404,7 @@
                     </button>
                     <button class="icon-btn" style="color:var(--amber);border-color:var(--amber-border);background:var(--amber-light)"
                       *ngIf="item.status!=='InStock'"
-                      (click)="inventoryTab='po'; showPOModal=true; poForm.patchValue({inventoryID:item.inventoryID})">
+                      (click)="inventoryTab='po'; showPOModal=true; poForm.reset(); poLineItems=[{inventoryID:item.inventoryID,quantity:'',unitPrice:''}]">
                       🛒 Restock
                     </button>
                     <button class="icon-btn icon-btn-danger" style="padding:4px 8px;font-size:11px" (click)="deleteInventoryItem(item)">

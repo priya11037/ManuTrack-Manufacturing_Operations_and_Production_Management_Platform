@@ -72,6 +72,8 @@ builder.Services.AddHttpClient("ProductService", client =>
     client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:ProductService"]!));
 builder.Services.AddHttpClient("InventoryService", client =>
     client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:InventoryService"]!));
+builder.Services.AddHttpClient("AuthService", client =>
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:AuthService"]!));
 
 builder.Services.AddScoped<IWorkOrderRepository, WorkOrderRepository>();
 builder.Services.AddScoped<IWorkOrderTaskRepository, WorkOrderTaskRepository>();

@@ -22,16 +22,14 @@ public class WorkOrderServiceImpl(
     {
         try
         {
-            var (userId, _) = ServiceHelper.GetCurrentUser(httpContextAccessor);
-            if (userId == 0) return;
-
             var client = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "NotificationService");
-            await client.PostAsJsonAsync("api/v1/notifications", new
+            await client.PostAsJsonAsync("api/v1/notifications/notify-role", new
             {
-                UserID = userId,
+                TargetRole = "Planner",
                 Title = "Work Order Completed",
                 Message = $"Work Order #{workOrderId} has been completed successfully.",
-                Category = "WorkOrder"
+                Category = "WorkOrder",
+                Priority = "Medium"
             });
         }
         catch (Exception ex) { logger.LogWarning(ex, "Work order completion notification failed for WO {WorkOrderId}.", workOrderId); }

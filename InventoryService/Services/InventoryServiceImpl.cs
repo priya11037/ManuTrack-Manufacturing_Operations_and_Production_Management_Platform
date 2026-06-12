@@ -59,20 +59,18 @@ public class InventoryServiceImpl(
         {
             try
             {
-                var (userId, _) = ServiceHelper.GetCurrentUser(httpContextAccessor);
-                if (userId == 0) return;
-
                 var client = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "NotificationService");
                 var message = newStatus == InventoryStatus.OutOfStock
                     ? $"ALERT: '{item.ProductName}' (ID: {item.InventoryID}) is OUT OF STOCK."
                     : $"WARNING: '{item.ProductName}' (ID: {item.InventoryID}) is LOW on stock. Current: {item.QuantityOnHand}, Minimum: {item.MinimumQuantity}.";
 
-                await client.PostAsJsonAsync("api/v1/notifications", new
+                await client.PostAsJsonAsync("api/v1/notifications/notify-role", new
                 {
-                    UserID = userId,
+                    TargetRole = "InventoryManager",
                     Title = newStatus == InventoryStatus.OutOfStock ? "Out of Stock Alert" : "Low Stock Warning",
                     Message = message,
-                    Category = "Inventory"
+                    Category = "Inventory",
+                    Priority = newStatus == InventoryStatus.OutOfStock ? "High" : "Medium"
                 });
             }
             catch (Exception ex) { logger.LogWarning(ex, "Low stock notification failed for item {ItemId}.", item.InventoryID); }

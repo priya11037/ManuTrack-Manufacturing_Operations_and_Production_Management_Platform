@@ -26,6 +26,40 @@ public class PurchaseOrderServiceImpl(
         return InventoryStatus.InStock;
     }
 
+    private async Task NotifyPOCreatedAsync(int poId, string supplierName)
+    {
+        try
+        {
+            var client = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "NotificationService");
+            await client.PostAsJsonAsync("api/v1/notifications/notify-role", new
+            {
+                TargetRole = "Admin",
+                Title = "New Purchase Order Created",
+                Message = $"Purchase Order #PO-{poId} has been created for supplier '{supplierName}' and requires approval.",
+                Category = "Inventory",
+                Priority = "Medium"
+            });
+        }
+        catch (Exception ex) { logger.LogWarning(ex, "PO created notification failed for PO {PoId}.", poId); }
+    }
+
+    private async Task NotifyPOStatusChangedAsync(int poId, string newStatus)
+    {
+        try
+        {
+            var client = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "NotificationService");
+            await client.PostAsJsonAsync("api/v1/notifications/notify-role", new
+            {
+                TargetRole = "InventoryManager",
+                Title = $"Purchase Order {newStatus}",
+                Message = $"Purchase Order #PO-{poId} has been {newStatus.ToLower()}.",
+                Category = "Inventory",
+                Priority = "Medium"
+            });
+        }
+        catch (Exception ex) { logger.LogWarning(ex, "PO status notification failed for PO {PoId}.", poId); }
+    }
+
     private async Task LogAuditAsync(string action, string entityType, string entityId, string? details = null)
     {
         try
@@ -117,6 +151,8 @@ public class PurchaseOrderServiceImpl(
         await LogAuditAsync("Created Purchase Order", "PurchaseOrder", created.POID.ToString(),
             $"Supplier: {supplierName}, Items: {items.Count}, Total: {po.TotalAmount}");
 
+        _ = NotifyPOCreatedAsync(created.POID, supplierName);
+
         return ApiResponse<PurchaseOrderViewModel>.Ok(Map(created), "Purchase order created.");
     }
 
@@ -165,6 +201,9 @@ public class PurchaseOrderServiceImpl(
 
         await LogAuditAsync("Updated PO Status", "PurchaseOrder", id.ToString(),
             $"New Status: {request.Status}");
+
+        if (request.Status == PurchaseOrderStatus.Approved || request.Status == PurchaseOrderStatus.Rejected)
+            _ = NotifyPOStatusChangedAsync(id, request.Status);
 
         return ApiResponse<PurchaseOrderViewModel>.Ok(Map(updated), "Purchase order status updated.");
     }

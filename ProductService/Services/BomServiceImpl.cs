@@ -47,9 +47,6 @@ public class BomServiceImpl(
     {
         try
         {
-            var (userId, _) = ServiceHelper.GetCurrentUser(httpContextAccessor);
-            if (userId == 0) return;
-
             // Query InventoryService for all items and filter by componentId
             var invClient = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "InventoryService");
             var invResponse = await invClient.GetAsync("api/v1/inventory");
@@ -66,13 +63,14 @@ public class BomServiceImpl(
             if (totalStock < requiredQuantity)
             {
                 var notifyClient = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "NotificationService");
-                await notifyClient.PostAsJsonAsync("api/v1/notifications", new
+                await notifyClient.PostAsJsonAsync("api/v1/notifications/notify-role", new
                 {
-                    UserID = userId,
+                    TargetRole = "InventoryManager",
                     Title = "Low Stock Alert",
                     Message = $"Component (ID: {componentId}) has only {totalStock} units in stock, " +
                               $"but the BOM requires {requiredQuantity} units.",
-                    Category = "Inventory"
+                    Category = "Inventory",
+                    Priority = "Medium"
                 });
             }
         }

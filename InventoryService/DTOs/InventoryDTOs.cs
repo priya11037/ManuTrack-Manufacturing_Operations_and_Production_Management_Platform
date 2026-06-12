@@ -26,7 +26,7 @@ public class CreateInventoryItemRequest : IValidatableObject
             yield return new ValidationResult("ComponentID is required when ItemType is 'RawMaterial'.", [nameof(ComponentID)]);
     }
 
-    // Changed: nullable int FK to InventoryLocation
+
     [Range(1, int.MaxValue, ErrorMessage = "LocationID must be a positive integer.")]
     public int? LocationID { get; set; }
 
@@ -43,7 +43,7 @@ public class CreateInventoryItemRequest : IValidatableObject
 
 public class UpdateInventoryItemRequest
 {
-    // Changed: nullable int FK to InventoryLocation
+    
     [Range(1, int.MaxValue, ErrorMessage = "LocationID must be a positive integer.")]
     public int? LocationID { get; set; }
 
@@ -76,7 +76,7 @@ public class InventoryItemViewModel
     public int? ProductID { get; set; }
     public int? ComponentID { get; set; }
     public string ProductName { get; set; } = string.Empty;
-    // Changed: int? + LocationName from navigation property
+ 
     public int? LocationID { get; set; }
     public string? LocationName { get; set; }
     public decimal QuantityOnHand { get; set; }

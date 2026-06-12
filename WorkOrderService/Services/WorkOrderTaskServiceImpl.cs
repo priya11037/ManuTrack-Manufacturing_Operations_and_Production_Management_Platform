@@ -78,6 +78,9 @@ public class WorkOrderTaskServiceImpl(
         await LogAuditAsync("Created Task", "WorkOrderTask", created.TaskID.ToString(),
             $"WorkOrderID: {created.WorkOrderID}, AssignedTo: {created.AssignedTo}");
 
+        var token = ServiceHelper.GetBearerToken(httpContextAccessor);
+        _ = NotifyTaskAssignedAsync(created.TaskID, created.WorkOrderID, created.AssignedTo, token);
+
         return ApiResponse<WorkOrderTaskViewModel>.Ok(Map(created), "Task created successfully.");
     }
 
@@ -198,20 +201,41 @@ public class WorkOrderTaskServiceImpl(
     private sealed class InventoryListResponseDto { public IEnumerable<InventoryItemDto>? Data { get; set; } }
     private sealed class InventoryItemDto { public int InventoryID { get; set; } public int? ComponentID { get; set; } }
 
+    private async Task NotifyTaskAssignedAsync(int taskId, int workOrderId, string assignedTo, string? token)
+    {
+        try
+        {
+            var auth = httpClientFactory.CreateClient("AuthService");
+            if (token != null) auth.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            var resp = await auth.GetFromJsonAsync<AuthUsersDto>("api/v1/auth/users/by-role/Operator",
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var uid = resp?.Data?.FirstOrDefault(u => string.Equals(u.Name, assignedTo, StringComparison.OrdinalIgnoreCase))?.UserID;
+            if (uid is null) return;
+
+            var notif = httpClientFactory.CreateClient("NotificationService");
+            if (token != null) notif.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            await notif.PostAsJsonAsync("api/v1/notifications", new
+                { UserID = uid, Title = "New Task Assigned", Message = $"You have been assigned Task #{taskId} for Work Order #{workOrderId}.", Category = "WorkOrder", Priority = "Medium" });
+        }
+        catch (Exception ex) { logger.LogWarning(ex, "Task assigned notification failed for task {TaskId}.", taskId); }
+    }
+
+    private sealed class AuthUsersDto { public IEnumerable<AuthUserDto>? Data { get; set; } }
+    private sealed class AuthUserDto { public int UserID { get; set; } public string Name { get; set; } = string.Empty; }
+
     private async Task NotifyWorkOrderCompletedAsync(int workOrderId, string? token)
     {
         try
         {
-            var (userId, _) = ServiceHelper.GetCurrentUser(httpContextAccessor);
-            if (userId == 0) return;
             var client = httpClientFactory.CreateClient("NotificationService");
             if (token != null) client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            await client.PostAsJsonAsync("api/v1/notifications", new
+            await client.PostAsJsonAsync("api/v1/notifications/notify-role", new
             {
-                UserID = userId,
+                TargetRole = "Planner",
                 Title = "Work Order Completed",
                 Message = $"Work Order #{workOrderId} has been completed — all tasks done.",
-                Category = "WorkOrder"
+                Category = "WorkOrder",
+                Priority = "Medium"
             });
         }
         catch (Exception ex) { logger.LogWarning(ex, "WO completion notification failed for WO {WorkOrderId}.", workOrderId); }

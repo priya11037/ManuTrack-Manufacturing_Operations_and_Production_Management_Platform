@@ -189,7 +189,7 @@ export class QualityInspectorComponent implements OnInit {
   get rf()  { return this.resolveForm.controls; }
   get rtf() { return this.resultForm.controls; }
 
-  // â”€â”€ INSPECTIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── INSPECTIONS ───────────────────────────────────────
   loadInspections(): void {
     this.inspectionsLoading = true; this.inspectionsError = '';
     this.qualitySvc.getAllInspections()
@@ -266,7 +266,7 @@ export class QualityInspectorComponent implements OnInit {
     return 'b-draft';
   }
 
-  // â”€â”€ DEFECTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── DEFECTS ───────────────────────────────────────────
   loadDefects(): void {
     this.defectsLoading = true;
     this.qualitySvc.getAllDefects()

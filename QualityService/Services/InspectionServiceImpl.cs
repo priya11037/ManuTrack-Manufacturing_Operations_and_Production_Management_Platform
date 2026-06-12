@@ -39,22 +39,39 @@ public class InspectionServiceImpl(
         catch (Exception ex) { logger.LogWarning(ex, "Audit log failed in InspectionService."); }
     }
 
-    // ── Change 3: Fail inspection notification (fire-and-forget) ──────────────
-    private async Task NotifyInspectionFailedAsync(int inspectionId, int workOrderId)
+    // ── Change 3: Inspection notifications (fire-and-forget) ──────────────────
+    private async Task NotifyInspectionScheduledAsync(int inspectionId, int workOrderId, string inspectorId)
     {
         try
         {
             var (userId, _) = ServiceHelper.GetCurrentUser(httpContextAccessor);
             if (userId == 0) return;
-
             var client = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "NotificationService");
             await client.PostAsJsonAsync("api/v1/notifications", new
             {
                 UserID = userId,
+                Title = "Inspection Scheduled",
+                Message = $"You have been assigned to inspect Work Order #{workOrderId} (Inspection #{inspectionId}).",
+                Category = "Quality",
+                Priority = "Medium"
+            });
+        }
+        catch (Exception ex) { logger.LogWarning(ex, "Inspection scheduled notification failed for inspection {InspectionId}.", inspectionId); }
+    }
+
+    private async Task NotifyInspectionFailedAsync(int inspectionId, int workOrderId)
+    {
+        try
+        {
+            var client = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "NotificationService");
+            await client.PostAsJsonAsync("api/v1/notifications/notify-role", new
+            {
+                TargetRole = "Planner",
                 Title = "Inspection Failed",
                 Message = $"Inspection #{inspectionId} failed for Work Order #{workOrderId}. " +
                           "Please review defects reported.",
-                Category = "Quality"
+                Category = "Quality",
+                Priority = "High"
             });
         }
         catch (Exception ex) { logger.LogWarning(ex, "Failed inspection notification failed for inspection {InspectionId}.", inspectionId); }
@@ -99,6 +116,8 @@ public class InspectionServiceImpl(
 
         await LogAuditAsync("Created Inspection", "Inspection", created.InspectionID.ToString(),
             $"WorkOrderID: {created.WorkOrderID}, Inspector: {created.InspectorName}");
+
+        _ = NotifyInspectionScheduledAsync(created.InspectionID, created.WorkOrderID, created.InspectorID);
 
         return ApiResponse<InspectionViewModel>.Ok(Map(created), "Inspection created.");
     }

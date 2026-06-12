@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -69,6 +69,10 @@ export class InventoryManagerComponent implements OnInit {
   poCreateLoading = false;
   supplierLoading = false;
 
+  poLineItems: Array<{ inventoryID: number | string; quantity: number | string; unitPrice: number | string }> = [
+    { inventoryID: '', quantity: '', unitPrice: '' }
+  ];
+
   toastMsg = ''; toastType: 'success' | 'error' = 'success';
   errorAlert = '';
   readonly workOrderStatuses = WorkOrderStatuses;
@@ -105,9 +109,6 @@ export class InventoryManagerComponent implements OnInit {
     this.poForm = this.fb.group({
       supplierName: ['', Validators.required],
       expectedDeliveryDate: ['', Validators.required],
-      inventoryID: ['', Validators.required],
-      quantity: ['', [Validators.required, Validators.min(0.0001)]],
-      unitPrice: ['', [Validators.required, Validators.min(0)]],
       notes: ['']
     });
 
@@ -190,7 +191,7 @@ export class InventoryManagerComponent implements OnInit {
     return Math.max(...this.suppliers.map(s => this.supplierPoCountN(s.name)), 1);
   }
 
-  // â”€â”€ INVENTORY FULL CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // INVENTORY FULL CRUD 
   get ivf() { return this.inventoryForm.controls; }
   get af()  { return this.adjustForm.controls; }
   get pof() { return this.poForm.controls; }
@@ -328,7 +329,7 @@ export class InventoryManagerComponent implements OnInit {
     return m[s] ?? 'b-draft';
   }
 
-  // â”€â”€ PURCHASE ORDERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // PURCHASE ORDERS 
   loadPurchaseOrders(): void {
     this.poLoading = true;
     this.inventorySvc.getAllPO()
@@ -336,26 +337,43 @@ export class InventoryManagerComponent implements OnInit {
       .subscribe({ next: res => { this.purchaseOrders = res?.data ?? []; this.cdr.detectChanges(); }, error: () => { this.poError = 'Failed to load POs.'; } });
   }
 
-  onPOItemSelect(event: Event): void {
-    const id = +(event.target as HTMLSelectElement).value;
-    const inv = this.inventoryItems.find(i => i.inventoryID === id);
-    if (inv) this.poForm.patchValue({ productName: inv.productName });
+  addPoLineItem(): void {
+    this.poLineItems = [...this.poLineItems, { inventoryID: '', quantity: '', unitPrice: '' }];
+  }
+
+  removePoLineItem(i: number): void {
+    this.poLineItems = this.poLineItems.filter((_, idx) => idx !== i);
+  }
+
+  poLineSubtotal(item: { quantity: number | string; unitPrice: number | string }): number {
+    return (+item.quantity || 0) * (+item.unitPrice || 0);
+  }
+
+  poGrandTotal(): number {
+    return this.poLineItems.reduce((sum, item) => sum + this.poLineSubtotal(item), 0);
   }
 
   createPO(): void {
     if (this.poForm.invalid) { this.poForm.markAllAsTouched(); return; }
     const v = this.poForm.value;
     if (!v.supplierName) { this.showToast('Select a supplier.', 'error'); return; }
+    const validItems = this.poLineItems.filter(li => li.inventoryID && +li.quantity > 0 && +li.unitPrice >= 0);
+    if (!validItems.length) { this.showToast('Add at least one item with qty and price.', 'error'); return; }
     this.poCreateLoading = true;
-    const inv = this.inventoryItems.find(i => i.inventoryID === +v.inventoryID);
+    const items = validItems.map(li => {
+      const inv = this.inventoryItems.find(i => i.inventoryID === +li.inventoryID);
+      return { inventoryID: +li.inventoryID, productID: inv?.productID ?? inv?.componentID ?? 1, productName: inv?.productName ?? '', quantity: +li.quantity, unitPrice: +li.unitPrice };
+    });
     this.inventorySvc.createPO({
       supplierName: v.supplierName,
       expectedDeliveryDate: new Date(v.expectedDeliveryDate).toISOString(),
       notes: v.notes || undefined,
-      items: [{ inventoryID: +v.inventoryID, productID: inv?.productID ?? inv?.componentID ?? 1, productName: inv?.productName ?? '', quantity: +v.quantity, unitPrice: +v.unitPrice }]
+      items
     }).subscribe({
       next: res => {
-        this.poCreateLoading = false; this.showPOModal = false; this.poForm.reset();
+        this.poCreateLoading = false; this.showPOModal = false;
+        this.poForm.reset();
+        this.poLineItems = [{ inventoryID: '', quantity: '', unitPrice: '' }];
         this.showToast('Purchase order created.');
         if (res?.data) {
           this.purchaseOrders = [res.data, ...this.purchaseOrders];

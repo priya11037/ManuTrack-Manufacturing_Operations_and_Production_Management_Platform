@@ -42,19 +42,35 @@ public class ComplianceReportServiceImpl(
     }
 
     // ── Change 3: Notification helpers (fire-and-forget) ─────────────────────
+    private async Task NotifyAdminReportCreatedAsync(int reportId, string title)
+    {
+        try
+        {
+            var client = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "NotificationService");
+            await client.PostAsJsonAsync("api/v1/notifications/notify-role", new
+            {
+                TargetRole = "Admin",
+                Title = "New Compliance Report Created",
+                Message = $"Compliance Report #{reportId} - '{title}' has been created and is in Draft.",
+                Category = "Compliance",
+                Priority = "Low"
+            });
+        }
+        catch (Exception ex) { logger.LogWarning(ex, "Report created notification failed for report {ReportId}.", reportId); }
+    }
+
     private async Task NotifyInReviewAsync(int reportId, string title)
     {
         try
         {
-            var (userId, _) = ServiceHelper.GetCurrentUser(httpContextAccessor);
             var client = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "NotificationService");
-            await client.PostAsJsonAsync("api/v1/notifications", new
+            await client.PostAsJsonAsync("api/v1/notifications/notify-role", new
             {
-                UserID = userId,
                 TargetRole = "Admin",
                 Title = "Compliance Report Ready for Review",
-                Message = $"Compliance Report #{reportId} - {title} is ready for review and approval.",
-                Category = "Compliance"
+                Message = $"Compliance Report #{reportId} - '{title}' is ready for review and approval.",
+                Category = "Compliance",
+                Priority = "Medium"
             });
         }
         catch (Exception ex) { logger.LogWarning(ex, "InReview notification failed for report {ReportId}.", reportId); }
@@ -126,6 +142,8 @@ public class ComplianceReportServiceImpl(
         // Change 4: write audit entry directly to repository
         await WriteAuditAsync("Created ComplianceReport", created.ReportID.ToString(),
             $"Title: {created.Title}, Type: {created.ReportType}");
+
+        _ = NotifyAdminReportCreatedAsync(created.ReportID, created.Title);
 
         return ApiResponse<ComplianceReportViewModel>.Ok(Map(created), "Compliance report created.");
     }

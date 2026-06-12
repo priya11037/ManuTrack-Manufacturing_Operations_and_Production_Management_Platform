@@ -1905,29 +1905,35 @@
           <div class="sum-card"><div class="sum-accent" style="background:var(--accent)"></div><div class="sum-label">Total Reports</div><div class="sum-val">{{ complianceReports.length }}</div></div>
           <div class="sum-card"><div class="sum-accent" style="background:var(--orange)"></div><div class="sum-label">Pending Approval</div><div class="sum-val">{{ pendingApprovalCount }}</div></div>
         </div>
-        <div class="card" *ngIf="!complianceLoading && complianceReports.length > 0">
-          <table class="data-table">
-            <thead><tr><th>ID</th><th>Title</th><th>Type</th><th>Scope</th><th>Period</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody>
-              <tr *ngFor="let r of complianceReports">
-                <td><span style="font-weight:600;color:var(--accent)">RPT-{{ r.reportID }}</span></td>
-                <td>{{ r.title }}</td>
-                <td><span class="badge b-planner" style="font-size:10px">{{ r.reportType }}</span></td>
-                <td style="color:var(--muted);font-size:13px">{{ r.scope }}</td>
-                <td style="font-size:12px;color:var(--muted)">
-                  <span *ngIf="r.periodStart">{{ r.periodStart | date:'dd MMM yyyy' }} – {{ r.periodEnd | date:'dd MMM yyyy' }}</span>
-                  <span *ngIf="!r.periodStart">—</span>
-                </td>
-                <td><span class="badge" [ngClass]="complianceReportStatusBadge(r.status)">{{ r.status }}</span></td>
-                <td>
-                  <button class="icon-btn" style="color:var(--green);border-color:var(--green-border);background:var(--green-light)"
-                    *ngIf="r.status === 'InReview'" (click)="openApproveReport(r)">✓ Approve</button>
-                  <span *ngIf="r.status === 'Approved'" style="font-size:12px;color:var(--muted)">✓ Approved by {{ r.approvedBy }}</span>
-                  <span *ngIf="r.status === 'Draft' || r.status === 'Closed'" style="font-size:12px;color:var(--muted)">—</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="card" style="padding:0;overflow:hidden" *ngIf="!complianceLoading && complianceReports.length > 0">
+          <div style="display:grid;grid-template-columns:80px 1fr 100px 110px;align-items:center;gap:16px;padding:10px 20px;border-bottom:1px solid var(--border);background:var(--surface-2,#f8f9fa)">
+            <span style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">ID</span>
+            <span style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">REPORT</span>
+            <span style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px;text-align:center">STATUS</span>
+            <span style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px;text-align:center">ACTION</span>
+          </div>
+          <div *ngFor="let r of complianceReports; let last = last"
+               style="display:grid;grid-template-columns:80px 1fr 100px 110px;align-items:center;gap:16px;padding:14px 20px"
+               [style.border-bottom]="last ? 'none' : '1px solid var(--border)'">
+            <span style="font-weight:700;color:var(--accent);font-size:13px">RPT-{{ r.reportID }}</span>
+            <div>
+              <div style="font-weight:600;font-size:14px;margin-bottom:4px">{{ r.title }}</div>
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span class="badge b-planner" style="font-size:10px">{{ r.reportType }}</span>
+                <span style="font-size:12px;color:var(--muted)">{{ r.scope }}</span>
+                <span *ngIf="r.periodStart" style="font-size:12px;color:var(--muted)">· {{ r.periodStart | date:'dd MMM yyyy' }} – {{ r.periodEnd | date:'dd MMM yyyy' }}</span>
+              </div>
+              <div *ngIf="r.approvedBy" style="font-size:11px;color:var(--green);margin-top:3px">✓ Approved by {{ r.approvedBy }} · {{ r.approvedDate | date:'dd MMM yyyy' }}</div>
+            </div>
+            <div style="display:flex;justify-content:center">
+              <span class="badge" [ngClass]="complianceReportStatusBadge(r.status)">{{ r.status }}</span>
+            </div>
+            <div style="display:flex;justify-content:center">
+              <button class="icon-btn" style="color:var(--green);border-color:var(--green-border);background:var(--green-light)"
+                *ngIf="r.status === 'InReview'" (click)="openApproveReport(r)">✓ Approve</button>
+              <span *ngIf="r.status !== 'InReview'" style="font-size:12px;color:var(--muted)">—</span>
+            </div>
+          </div>
         </div>
         <div class="card" *ngIf="!complianceLoading && complianceReports.length === 0" style="text-align:center;padding:40px;color:var(--muted)">No compliance reports found.</div>
         <div class="card" *ngIf="complianceLoading" style="text-align:center;padding:40px;color:var(--muted)">Loading…</div>

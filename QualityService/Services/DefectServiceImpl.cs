@@ -46,19 +46,16 @@ public class DefectServiceImpl(
         // 4a: Send notification
         try
         {
-            var (userId, _) = ServiceHelper.GetCurrentUser(httpContextAccessor);
-            if (userId != 0)
+            var notifClient = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "NotificationService");
+            await notifClient.PostAsJsonAsync("api/v1/notifications/notify-role", new
             {
-                var notifClient = ServiceHelper.CreateAuthorizedClient(httpClientFactory, httpContextAccessor, "NotificationService");
-                await notifClient.PostAsJsonAsync("api/v1/notifications", new
-                {
-                    UserID = userId,
-                    Title = "Critical Defect Detected",
-                    Message = $"A Critical defect (ID #{defectId}) has been logged for Work Order #{workOrderId}. " +
-                              "The work order has been automatically cancelled for review.",
-                    Category = "Quality"
-                });
-            }
+                TargetRole = "Planner",
+                Title = "Critical Defect Detected",
+                Message = $"A Critical defect (ID #{defectId}) has been logged for Work Order #{workOrderId}. " +
+                          "The work order has been automatically cancelled for review.",
+                Category = "Quality",
+                Priority = "High"
+            });
         }
         catch (Exception ex) { logger.LogWarning(ex, "Critical defect notification failed for defect {DefectId}.", defectId); }
 
