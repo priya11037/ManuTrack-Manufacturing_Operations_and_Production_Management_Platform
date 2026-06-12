@@ -1,4 +1,4 @@
-import { Component, ChangeDetectorRef } from '@angular/core';
+import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
@@ -19,8 +19,7 @@ export class LoginComponent {
   constructor(
     private fb: FormBuilder,
     private auth: AuthService,
-    private router: Router,
-    private cdr: ChangeDetectorRef
+    private router: Router
   ) {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
@@ -40,27 +39,17 @@ export class LoginComponent {
     this.errorMessage = '';
 
     this.auth.login(this.loginForm.value)
-      .pipe(finalize(() => { this.isLoading = false; this.cdr.detectChanges(); }))
+      .pipe(finalize(() => { this.isLoading = false; }))
       .subscribe({
-        next: (res: any) => {
+        next: (res) => {
           if (res?.success) {
-            const role = this.auth.getRole();
-            const route = role === 'Admin' ? '/admin'
-              : role === 'Planner' ? '/planner'
-              : role === 'Operator' ? '/operator'
-              : role === 'InventoryManager' ? '/inventory-manager'
-              : role === 'Inspector' ? '/quality-inspector'
-              : role === 'ComplianceOfficer' ? '/compliance-officer'
-              : '/login';
-            this.router.navigate([route], { replaceUrl: true });
+            this.router.navigate([this.auth.getDashboardRoute()], { replaceUrl: true });
           } else {
             this.errorMessage = res?.message || 'Login failed. Please try again.';
-            this.cdr.detectChanges();
           }
         },
-        error: (err: any) => {
+        error: (err) => {
           this.errorMessage = err?.error?.message || 'Invalid email or password.';
-          this.cdr.detectChanges();
         }
       });
   }

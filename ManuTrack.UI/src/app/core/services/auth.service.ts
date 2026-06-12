@@ -3,6 +3,15 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { timeout } from 'rxjs/operators';
 
+export const ROLE_ROUTES: Record<string, string> = {
+  'Admin':             '/admin',
+  'Planner':           '/planner',
+  'Operator':          '/operator',
+  'InventoryManager':  '/inventory-manager',
+  'Inspector':         '/quality-inspector',
+  'ComplianceOfficer': '/compliance-officer'
+};
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -49,8 +58,25 @@ export class AuthService {
     localStorage.clear();
   }
 
+  isTokenExpired(): boolean {
+    const token = localStorage.getItem('token');
+    if (!token) return true;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      // exp is in seconds; Date.now() is in milliseconds
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  }
+
   isLoggedIn(): boolean {
-    return !!localStorage.getItem('token');
+    if (!localStorage.getItem('token')) return false;
+    if (this.isTokenExpired()) {
+      this.logout();
+      return false;
+    }
+    return true;
   }
 
   getToken(): string | null {
@@ -63,5 +89,9 @@ export class AuthService {
 
   getName(): string | null {
     return localStorage.getItem('name');
+  }
+
+  getDashboardRoute(): string {
+    return ROLE_ROUTES[this.getRole() ?? ''] ?? '/login';
   }
 }

@@ -8,22 +8,9 @@ export class NoAuthGuard implements CanActivate {
 
   canActivate(): boolean {
     if (this.auth.isLoggedIn()) {
-      this.router.navigate([this.getDashboardRoute()], { replaceUrl: true });
+      this.router.navigate([this.auth.getDashboardRoute()], { replaceUrl: true });
       return false;
     }
     return true;
-  }
-
-  private getDashboardRoute(): string {
-    const role = this.auth.getRole();
-    switch (role) {
-      case 'Admin':              return '/admin';
-      case 'Planner':            return '/planner';
-      case 'Operator':           return '/operator';
-      case 'InventoryManager':   return '/inventory-manager';
-      case 'Inspector':          return '/quality-inspector';
-      case 'ComplianceOfficer':  return '/compliance-officer';
-      default:                   return '/login';
-    }
   }
 }
